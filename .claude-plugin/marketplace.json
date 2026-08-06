@@ -1,7 +1,7 @@
 {
-  "name": "openai-codex",
+  "name": "coconut49-codex",
   "owner": {
-    "name": "OpenAI"
+    "name": "coconut49"
   },
   "metadata": {
     "description": "Codex plugins to use in Claude Code for delegation and code review.",
