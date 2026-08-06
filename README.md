@@ -1,5 +1,8 @@
 # Codex plugin for Claude Code
 
+> [!NOTE]
+> This is a personally maintained fork of [openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc), adapted for the GPT-5.6 model family. Upstream sync runs through [.fork/sync.sh](.fork/sync.sh).
+
 Use Codex from inside Claude Code for code reviews or to delegate tasks to Codex.
 
 This plugin is for Claude Code users who want an easy way to start using Codex from the workflow
@@ -21,16 +24,22 @@ they already have.
 
 ## Install
 
+This fork ships the same plugin name (`codex`) as the official marketplace, so uninstall the official plugin first if you have it:
+
+```bash
+/plugin uninstall codex@openai-codex
+```
+
 Add the marketplace in Claude Code:
 
 ```bash
-/plugin marketplace add openai/codex-plugin-cc
+/plugin marketplace add coconut49/codex-plugin-cc
 ```
 
 Install the plugin:
 
 ```bash
-/plugin install codex@openai-codex
+/plugin install codex@coconut49-codex
 ```
 
 Reload plugins:
@@ -86,7 +95,7 @@ Use it when you want:
 - a review of your current uncommitted changes
 - a review of your branch compared to a base branch like `main`
 
-Use `--base <ref>` for branch review. It also supports `--wait` and `--background`. It is not steerable and does not take custom focus text. Use [`/codex:adversarial-review`](#codexadversarial-review) when you want to challenge a specific decision or risk area.
+Use `--base <ref>` for branch review. It also supports `--wait`, `--background`, and optional `--model <model>` / `--effort <effort>` overrides (unset means your Codex config decides). It is not steerable and does not take custom focus text. Use [`/codex:adversarial-review`](#codexadversarial-review) when you want to challenge a specific decision or risk area.
 
 Examples:
 
@@ -105,7 +114,7 @@ Runs a **steerable** review that questions the chosen implementation and design.
 It can be used to pressure-test assumptions, tradeoffs, failure modes, and whether a different approach would have been safer or simpler.
 
 It uses the same review target selection as `/codex:review`, including `--base <ref>` for branch review.
-It also supports `--wait` and `--background`. Unlike `/codex:review`, it can take extra focus text after the flags.
+It also supports `--wait`, `--background`, and optional `--model <model>` / `--effort <effort>` overrides. Unlike `/codex:review`, it can take extra focus text after the flags.
 
 Use it when you want:
 
@@ -145,8 +154,8 @@ Examples:
 /codex:rescue investigate why the tests started failing
 /codex:rescue fix the failing test with the smallest safe patch
 /codex:rescue --resume apply the top fix from the last run
-/codex:rescue --model gpt-5.4-mini --effort medium investigate the flaky integration test
-/codex:rescue --model spark fix the issue quickly
+/codex:rescue --model gpt-5.6-luna --background port these fixtures to the new schema
+/codex:rescue --model gpt-5.6-sol challenge the caching design in this module
 /codex:rescue --background investigate the regression
 ```
 
@@ -158,8 +167,8 @@ Ask Codex to redesign the database connection to be more resilient.
 
 **Notes:**
 
-- if you do not pass `--model` or `--effort`, Codex chooses its own defaults.
-- if you say `spark`, the plugin maps that to `gpt-5.3-codex-spark`
+- if you do not pass `--model` or `--effort`, your Codex config decides — see [Common Configurations](#common-configurations).
+- Claude routes delegated work with a concrete deliverable and a mechanically checkable outcome to `gpt-5.6-luna`, and leaves the model unset for second opinions, review, and diagnosis. Naming a model explicitly always wins.
 - follow-up rescue requests can continue the latest Codex task in the repo
 
 ### `/codex:transfer`
@@ -270,12 +279,14 @@ The Codex plugin wraps the [Codex app server](https://developers.openai.com/code
 
 ### Common Configurations
 
-If you want to change the default reasoning effort or the default model that gets used by the plugin, you can define that inside your user-level or project-level `config.toml`. For example to always use `gpt-5.4-mini` on `high` for a specific project you can add the following to a `.codex/config.toml` file at the root of the directory you started Claude in:
+The plugin never hardcodes a model or effort: whatever your user-level or project-level `config.toml` says is what unset runs use. The recommended default for this fork is the frontier model at deep reasoning, so that second opinions and reviews land above expectation:
 
 ```toml
-model = "gpt-5.4-mini"
-model_reasoning_effort = "high"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
 ```
+
+Delegated bulk work still goes to `gpt-5.6-luna` because Claude passes `--model` explicitly for that channel; your config only fills the gaps.
 
 Your configuration will be picked up based on:
 

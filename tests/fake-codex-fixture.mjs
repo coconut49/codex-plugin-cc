@@ -233,7 +233,9 @@ function structuredReviewPayload(prompt) {
 }
 
 function taskPayload(prompt, resume) {
-  if (prompt.includes("<task>") && prompt.includes("Only review the work from the previous Claude turn.")) {
+  // The stop gate is the only prompt whose output contract is an ALLOW:/BLOCK:
+  // first line, which is exactly what stop-review-gate-hook.mjs parses.
+  if (prompt.includes("<task>") && prompt.includes("ALLOW:") && prompt.includes("BLOCK:")) {
     if (BEHAVIOR === "adversarial-clean") {
       return "ALLOW: No blocking issues found in the previous turn.";
     }
@@ -313,7 +315,14 @@ rl.on("line", (line) => {
           throw new Error("thread/start.persistFullHistory requires experimentalApi capability");
         }
         const thread = nextThread(state, message.params.cwd, message.params.ephemeral);
-        send({ id: message.id, result: { thread: buildThread(thread), model: message.params.model || "gpt-5.4", modelProvider: "openai", serviceTier: null, cwd: thread.cwd, approvalPolicy: "never", sandbox: { type: "readOnly", access: { type: "fullAccess" }, networkAccess: false }, reasoningEffort: null } });
+        const threadEffort = (message.params.config || {}).model_reasoning_effort ?? null;
+        state.lastThreadStart = {
+          threadId: thread.id,
+          model: message.params.model ?? null,
+          effort: threadEffort
+        };
+        saveState(state);
+        send({ id: message.id, result: { thread: buildThread(thread), model: message.params.model || "gpt-5.4", modelProvider: "openai", serviceTier: null, cwd: thread.cwd, approvalPolicy: "never", sandbox: { type: "readOnly", access: { type: "fullAccess" }, networkAccess: false }, reasoningEffort: threadEffort } });
         send({ method: "thread/started", params: { thread: { id: thread.id } } });
         break;
       }

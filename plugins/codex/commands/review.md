@@ -1,6 +1,6 @@
 ---
 description: Run a Codex code review against local git state
-argument-hint: '[--wait|--background] [--base <ref>] [--scope auto|working-tree|branch]'
+argument-hint: '[--wait|--background] [--base <ref>] [--scope auto|working-tree|branch] [--model <model>] [--effort <effort>]'
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), AskUserQuestion
 ---
@@ -35,6 +35,7 @@ Argument handling:
 - Preserve the user's arguments exactly.
 - Do not strip `--wait` or `--background` yourself.
 - Do not add extra review instructions or rewrite the user's intent.
+- `--model` and `--effort` default to the user's Codex config; pass them only when the user asks for them or the review is quality-critical.
 - The companion script parses `--wait` and `--background`, but Claude Code's `Bash(..., run_in_background: true)` is what actually detaches the run.
 - `/codex:review` is native-review only. It does not support staged-only review, unstaged-only review, or extra focus text.
 - If the user needs custom review instructions or more adversarial framing, they should use `/codex:adversarial-review`.
@@ -44,9 +45,6 @@ Foreground flow:
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/scripts/codex-companion.mjs" review "$ARGUMENTS"
 ```
-- Return the command stdout verbatim, exactly as-is.
-- Do not paraphrase, summarize, or add commentary before or after it.
-- Do not fix any issues mentioned in the review output.
 
 Background flow:
 - Launch the review with `Bash` in the background:

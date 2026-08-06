@@ -67,7 +67,10 @@ function buildThreadParams(cwd, options = {}) {
     approvalPolicy: options.approvalPolicy ?? "never",
     sandbox: options.sandbox ?? "read-only",
     serviceName: SERVICE_NAME,
-    ephemeral: options.ephemeral ?? true
+    ephemeral: options.ephemeral ?? true,
+    // review/start carries no effort field, so a review thread's reasoning
+    // effort can only be set as a thread-level config override.
+    config: options.effort ? { model_reasoning_effort: options.effort } : null
   };
 }
 
@@ -1009,6 +1012,7 @@ export async function runAppServerReview(cwd, options = {}) {
     emitProgress(options.onProgress, "Starting Codex review thread.", "starting");
     const thread = await startThread(client, cwd, {
       model: options.model,
+      effort: options.effort,
       sandbox: "read-only",
       ephemeral: true,
       threadName: options.threadName

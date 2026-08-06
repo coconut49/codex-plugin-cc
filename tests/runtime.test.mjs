@@ -386,6 +386,51 @@ test("adversarial review renders structured findings over app-server turn/start"
   assert.match(result.stdout, /Missing empty-state guard/);
 });
 
+test("review forwards model and reasoning effort to the app-server review thread", () => {
+  const repo = makeTempDir();
+  const binDir = makeTempDir();
+  const statePath = path.join(binDir, "fake-codex-state.json");
+  installFakeCodex(binDir);
+  initGitRepo(repo);
+  fs.mkdirSync(path.join(repo, "src"));
+  fs.writeFileSync(path.join(repo, "src", "app.js"), "export const value = items[0];\n");
+  run("git", ["add", "src/app.js"], { cwd: repo });
+  run("git", ["commit", "-m", "init"], { cwd: repo });
+  fs.writeFileSync(path.join(repo, "src", "app.js"), "export const value = items[0].id;\n");
+
+  const result = run("node", [SCRIPT, "review", "--model", "gpt-5.6-luna", "--effort", "xhigh"], {
+    cwd: repo,
+    env: buildEnv(binDir)
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const fakeState = JSON.parse(fs.readFileSync(statePath, "utf8"));
+  assert.equal(fakeState.lastThreadStart.model, "gpt-5.6-luna");
+  assert.equal(fakeState.lastThreadStart.effort, "xhigh");
+});
+
+test("adversarial review forwards reasoning effort to the app-server turn", () => {
+  const repo = makeTempDir();
+  const binDir = makeTempDir();
+  const statePath = path.join(binDir, "fake-codex-state.json");
+  installFakeCodex(binDir);
+  initGitRepo(repo);
+  fs.mkdirSync(path.join(repo, "src"));
+  fs.writeFileSync(path.join(repo, "src", "app.js"), "export const value = items[0];\n");
+  run("git", ["add", "src/app.js"], { cwd: repo });
+  run("git", ["commit", "-m", "init"], { cwd: repo });
+  fs.writeFileSync(path.join(repo, "src", "app.js"), "export const value = items[0].id;\n");
+
+  const result = run("node", [SCRIPT, "adversarial-review", "--effort", "xhigh"], {
+    cwd: repo,
+    env: buildEnv(binDir)
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const fakeState = JSON.parse(fs.readFileSync(statePath, "utf8"));
+  assert.equal(fakeState.lastTurnStart.effort, "xhigh");
+});
+
 test("adversarial review accepts the same base-branch targeting as review", () => {
   const repo = makeTempDir();
   const binDir = makeTempDir();
@@ -773,15 +818,37 @@ test("task forwards model selection and reasoning effort to app-server turn/star
   run("git", ["add", "README.md"], { cwd: repo });
   run("git", ["commit", "-m", "init"], { cwd: repo });
 
-  const result = run("node", [SCRIPT, "task", "--model", "spark", "--effort", "low", "diagnose the failing test"], {
+  const result = run("node", [SCRIPT, "task", "--model", "gpt-5.6-luna", "--effort", "low", "diagnose the failing test"], {
     cwd: repo,
     env: buildEnv(binDir)
   });
 
   assert.equal(result.status, 0, result.stderr);
   const fakeState = JSON.parse(fs.readFileSync(statePath, "utf8"));
-  assert.equal(fakeState.lastTurnStart.model, "gpt-5.3-codex-spark");
+  assert.equal(fakeState.lastTurnStart.model, "gpt-5.6-luna");
   assert.equal(fakeState.lastTurnStart.effort, "low");
+});
+
+test("task passes unknown model and effort values through to Codex untouched", () => {
+  const repo = makeTempDir();
+  const binDir = makeTempDir();
+  const statePath = path.join(binDir, "fake-codex-state.json");
+  installFakeCodex(binDir);
+  initGitRepo(repo);
+  fs.writeFileSync(path.join(repo, "README.md"), "hello\n");
+  run("git", ["add", "README.md"], { cwd: repo });
+  run("git", ["commit", "-m", "init"], { cwd: repo });
+
+  const result = run(
+    "node",
+    [SCRIPT, "task", "--model", "gpt-9-unreleased", "--effort", "ultra", "diagnose the failing test"],
+    { cwd: repo, env: buildEnv(binDir) }
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  const fakeState = JSON.parse(fs.readFileSync(statePath, "utf8"));
+  assert.equal(fakeState.lastTurnStart.model, "gpt-9-unreleased");
+  assert.equal(fakeState.lastTurnStart.effort, "ultra");
 });
 
 test("task logs reasoning summaries and assistant messages to the job log", () => {
@@ -1964,8 +2031,8 @@ test("stop hook runs a stop-time review task and blocks on findings when the rev
 
   const fakeState = JSON.parse(fs.readFileSync(fakeStatePath, "utf8"));
   assert.match(fakeState.lastTurnStart.prompt, /<task>/i);
-  assert.match(fakeState.lastTurnStart.prompt, /<compact_output_contract>/i);
-  assert.match(fakeState.lastTurnStart.prompt, /Only review the work from the previous Claude turn/i);
+  assert.match(fakeState.lastTurnStart.prompt, /ALLOW:/);
+  assert.match(fakeState.lastTurnStart.prompt, /BLOCK:/);
   assert.match(fakeState.lastTurnStart.prompt, /I completed the refactor and updated the retry logic\./);
 
   const status = run("node", [SCRIPT, "status"], {
