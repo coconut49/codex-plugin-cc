@@ -279,7 +279,7 @@ The Codex plugin wraps the [Codex app server](https://developers.openai.com/code
 
 ### Common Configurations
 
-The plugin never hardcodes a model or effort: whatever your user-level or project-level `config.toml` says is what unset runs use. The recommended default for this fork is the frontier model at deep reasoning, so that second opinions and reviews land above expectation:
+The plugin never hardcodes a model or effort: whatever your user-level or project-level `config.toml` says is what unset runs use. The recommended default for this fork is deep reasoning on `gpt-5.6-sol`, so that second opinions and reviews land at full depth:
 
 ```toml
 model = "gpt-5.6-sol"

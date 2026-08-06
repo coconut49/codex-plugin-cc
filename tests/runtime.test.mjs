@@ -741,6 +741,19 @@ test("session start hook exports the Claude session id, transcript path, and plu
     fs.readFileSync(envFile, "utf8"),
     `export CODEX_COMPANION_SESSION_ID='sess-current'\nexport CODEX_COMPANION_TRANSCRIPT_PATH='${transcriptPath}'\nexport CLAUDE_PLUGIN_DATA='${pluginDataDir}'\n`
   );
+
+  // The delegation policy and the GPT-5.6 family primer must arrive as
+  // standing context via additionalContext, as trigger→action rules with no
+  // capability-tier language (rank adjectives read as authority and skew the
+  // main loop's own judgment).
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.hookSpecificOutput.hookEventName, "SessionStart");
+  assert.match(output.hookSpecificOutput.additionalContext, /gpt-5\.6-luna/);
+  assert.match(output.hookSpecificOutput.additionalContext, /checkable outcome/i);
+  assert.match(output.hookSpecificOutput.additionalContext, /gpt-5\.6-sol/);
+  assert.match(output.hookSpecificOutput.additionalContext, /`--background`, never/);
+  assert.match(output.hookSpecificOutput.additionalContext, /not an authority/i);
+  assert.doesNotMatch(output.hookSpecificOutput.additionalContext, /frontier|flagship|smarter|stronger|most capable/i);
 });
 
 test("write task output focuses on the Codex result without generic follow-up hints", () => {

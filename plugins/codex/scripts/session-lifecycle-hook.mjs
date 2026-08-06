@@ -74,10 +74,43 @@ function cleanupSessionJobs(cwd, sessionId) {
   });
 }
 
+// Injected into every session. Everything here is something the main loop
+// needs but cannot know on its own: the delegation nudge (the agent
+// description alone loses to subagent damping), and the GPT-5.6 family
+// (released after current Claude models' knowledge cutoff). Written as
+// trigger → action rules only — no capability-tier adjectives, because the
+// models are Pareto-incomparable and rank language reads as authority.
+const DELEGATION_POLICY = [
+  "Codex delegation rules:",
+  "- A mechanical, well-specified work unit with a checkable outcome (data",
+  "  comparison, batch edits, test writing, format conversion) → delegate to",
+  "  the codex-rescue subagent with `--model gpt-5.6-luna --background`, even",
+  "  when you could finish it yourself in a few tool calls; offloading",
+  "  preserves the user's Claude quota. Judgment-heavy work stays in the main",
+  "  loop.",
+  "- GPT-5.6 postdates your knowledge cutoff; do not map it onto older GPT",
+  "  families. When the user says \"sol\" or \"luna\", pass the full names",
+  "  `gpt-5.6-sol` / `gpt-5.6-luna`.",
+  "- A delegation that will run deep reasoning (gpt-5.6-sol, or model left",
+  "  unset — the user's Codex config decides) → `--background`, never",
+  "  `--wait`; those runs take minutes.",
+  "- A Codex second opinion is an independent perspective with a different",
+  "  error profile, not an authority. Adjudicate disagreements on evidence;",
+  "  keep your own conclusion when the evidence favors it."
+].join("\n");
+
 function handleSessionStart(input) {
   appendEnvVar(SESSION_ID_ENV, input.session_id);
   appendEnvVar(TRANSCRIPT_PATH_ENV, input.transcript_path);
   appendEnvVar(PLUGIN_DATA_ENV, process.env[PLUGIN_DATA_ENV]);
+  process.stdout.write(
+    `${JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: "SessionStart",
+        additionalContext: DELEGATION_POLICY
+      }
+    })}\n`
+  );
 }
 
 async function handleSessionEnd(input) {
